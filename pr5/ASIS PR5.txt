@@ -1,0 +1,121 @@
+############################
+# Cristian Simon Moreno
+# Practica 5 
+############################
+
+-------
+PARTE I
+-------
+1º Añadimos un disco duro nuevo a una de las maquinas virtuales:
+Dentro del VirtualBox seleccionamos una maquina y vamos a configuracion,
+almacenamiento, controlador SATA y añadimos un nuevo disco. Dentro del
+asistente seleccionamos almacenamiento de tamaño fijo, le ponemos nombre
+y seleccionamos el tamaño (en mi caso 3GB).
+
+2º Comprobamos el nombre del nuevo disco duro creado con el comando 
+fdisk -l y vemos que se llama "sdb", por lo que procedemos a crear sus 
+particiones: fdisk /dev/sdb. Seleccionamos la opcion n y seguimos los pasos, una
+vez creada seleccionamos la opcion t para definir que es tipo Linux (83). De esta 
+forma repitiendo el proceso tendremos las 2 particiones creadas. Para comprobarlo
+lo podemos ver con el comando fdisk -l /dev/sdb.
+
+3º Creamos los sistemas de ficheros correspondientes mediante el comando mkfs,
+en la primera particion (sdb1) -> mkfs.ext3 /dev/sdb1 y en la segunda lo mismo
+(sdb2) -> mkfs.ext4 /dev/sdb2
+
+4º Montamos el disco con el comando mount:
+mkdir /pruebasdisco
+mkdir /pruebasdisco2
+-> mount -t ext3 /dev/sdb1 /pruebasdisco
+-> mount -t ext4 /dev/sdb2 /pruebasdisco2
+y comprobamos en el fichero /etc/mtab que esta todo correcto o mediante el comando
+df -h
+
+5º Para configurar el sistema para que monte las particiones en el arranque debemos
+obtener el UUID de cada particion, para ello podemos usar el comando blkid /dev/sdbX,
+una vez los hemos obtenido modificamos el fichero /etc/fstab añadiendo:
+-> UUIDsdb1 /pruebasdisco ext3 relatime,errors=remount-ro 0 1
+-> UUIDsdb2 /pruebasdisco2 ext4 relatime,errors=remount-ro 0 1
+de esta forma al arrancar montara las nuevas particiones.
+
+--------
+PARTE II
+--------
+1º Para saber los discos duros disponibles y sus tamaños en MB utilizamos el comando
+sfdisk -s cogiendo unicamente el tamaño de cada disco dividido por 1024 para hallar
+el espacio libre en MB
+
+-> sfdisk -s ! awk '$1!="total:" {printf"%-15s %sMB\n",$1,$2/1024}'
+
+2º Para saber las particiones y tamaños utilizamos el comando sfdisk -l eliminando
+todo aquello que no sean las particiones y sus tamaños mediante awk
+
+-> sfdisk -l ! awk '/dev/ && $1!="Disco" {printf"%-15s %sMB\n",$1,$6/1024}'
+
+3º Mediante los comandos pvs, lvs y vgs obtenemos toda la informacion de los volumenes
+logicos
+
+4º Para saber la informacion de montaje de sistemas de ficheros utilizamos el comando
+df -hT eliminando los que son tipo "tmpfs".
+
+-> df -hT | awk '$2!="tmpfs" {printf"%-10s %-10s %-15s %-10s %-10s\n",$1,$2,$7,$3,$5}'
+
+Ahora para comprobarlo en las maquinas virtuales remotamente tendriamos que ejecutar el comando:
+
+-> ssh user@192.168.56.X 'bash -s' < script.sh
+
+---------
+PARTE III
+---------
+1º Creamos un nuevo disco duro en virtualBox para una de las maquinas como hemos
+hecho en la parte I.
+
+2º Comprobamos el nombre del nuevo disco duro creado con el comando 
+fdisk -l y vemos que se llama "sdb", por lo que procedemos a crear sus 
+particiones: fdisk /dev/sdb. Seleccionamos la opcion n y seguimos los pasos, una
+vez creada seleccionamos la opcion t para definir que es tipo LVM (8e). Para 
+comprobarlo lo podemos ver con el comando fdisk -l /dev/sdb.
+
+3º Creamos los volumenes fisicos de las particiones que vayamos a usar, en mi
+caso /dev/sdb1:
+-> pvcreate /dev/sdb1
+añadimos el grupo de volumen que contendra nuestros volumenes logicos:
+-> vgcreate grupo1 /dev/sdb1
+creamos los volumenes logicos:
+-> lvcreate -L1G -n volumen1 grupo1
+le damos formato:
+-> mkfs.ext4 /dev/grupo1/volumen1
+
+4º Script para extender la capacidad de un grupo volumen por parametros:
+El Script recibira como parametros:
+grupo volumen particion tamaño
+Para extender la capacidad necesitamos:
+-Crear un nuevo volumen fisico con la particion deseada
+-Ampliar el grupo de volumenes añadiendo un volumen fisico del tamaño deseado
+-Ampliar el volumen logico
+-Redimensionar el sistema de ficheros para que aproveche la nueva capacidad
+Para ello en el script me he definido como constantes las variables y he ido haciendo
+paso por paso los pasos indicados anteriormente utilizando los comandos:
+-> pvcreate
+-> vgextend
+-> lvextend
+-> resize2fs
+
+5º Script para extender la capacidad de un grupo volumen por entrada estandar
+El script recibira como parametros el nombre del volumen logico, el tamaño, el
+tipo de sistema de archivos, el directorio de montaje.
+He añadido que pida tambien el nombre del grupo de volumen, ya que para ultilizar
+el comando lvcreate la necesito.
+
+lo primero sera comprobar si el volumen logico existe. Si no existe lo creamos como
+hicimos en el script anterior. En el caso de que exista lo redimensionamos.
+
+Para que el equipo lo monte en cada arranque debemos sacar el UUID, para ello:
+
+-> blkid | grep -oiE '([0-9A-Z]{6}-)([0-9A-Z]{4}-){5}([0-9A-Z]{6})')
+
+una vez lo hemos obtenido modificamos el fichero /etc/fstab como hicimos en la 
+primera parte.
+
+
+

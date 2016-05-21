@@ -1,0 +1,88 @@
+############################
+# Cristian Simon Moreno
+# Practica 6 
+############################
+
+-------
+PARTE I
+-------
+
+1º Debemos configurar ambas maquinas, tanto la que envia como la que recibe, para ello:
+-> la que envia (192.168.56.1):
+-editamos el rsyslog: gedit /etc/rsyslog.conf
+-añadimos al final del fichero: local0.info @@192.168.56.2:514
+el local0 indica la procedencia del mensaje, info indica el nivel del mensaje, los @@
+indican que el mensaje usara TCP, si pusieramos solo uno usaria UDP. Luego viene la 
+direccion IP del destino seguido del puerto.
+-reiniciamos el servicio de logs: service rsyslog restart
+
+-> la que recibe (192.168.56.2):
+-editamos el rsyslog: gedit /etc/rsyslog.conf
+-buscamos donde aparece:
+
+# provides UDP syslog reception
+#$ModLoad imudp
+#$UDPServerRun 514
+
+# provides TCP syslog reception
+#$ModLoad imtcp
+#$InputTCPServerRun 514
+
+y quitamos de comentario las 2 lineas del transporte que hemos seleccionado anteriormente
+(TCP(@@) o UDP(@)).
+-añadimos al final del fichero: local0.info /var/log/monitorizacion.log
+-reiniciamos el servicio de logs: service rsyslog restart
+
+2º Comprobamos que funciona correctamente mediante un simple: 
+logger -p local0.info "hola"
+y como podemos comprobar nos ha creado un monitorizacion.log con el mensaje en 
+la ruta /var/log
+
+3º Configuramos cron para que se ejecute periodicamente, para ello editamos el fichero
+/etc/crontab y añadimos:
+-> MAILTO=/dev/null para no enviar mails
+-> HOME=/ para definir la ruta base
+-> */2 * * * root /home/user/NOMBRESCRIPT.sh >> /var/log/monitorizacion.log para que se ejecute 
+el script periodicamente cada 2 minutos y lo guarde en el log.
+reiniciamos:
+service cron restart
+y comprobamos:
+cat /var/log/monitorizacion.log
+
+4º Lo primero en el script me he definido un logger para llevar un control de en que momentos
+se obtienen los datos:
+-> logger -p local0.info "EJECUCION SCRIPT"
+
+Me he dividido el script en 2 partes, uno para la maquina local y otro para la remota. En la maquina
+local simplemente ejecutamos los comandos, mientras que en la maquina remota los ejecuto mediante ssh:
+-> ssh user@192.168.56.1 comando
+y tambien añadimos el comando ping en la remota para comprobar su funcionamiento, con un solo envio es 
+suficiente:
+-> ping -c 1 192.168.56.1
+
+*Me he encontrado con un problema a la hora de ejecutar los comandos en la maquina remota, ya que me pedia
+contraseña. Para quitar dicha contraseña:
+-> ssh-keygen -b 4096 -t rsa
+-> 3 veces al enter
+-> ssh-copy-id user@192.168.56.1
+
+--------
+PARTE II
+--------
+
+1º Hacemos un update
+-> sudo apt-get update
+Instalamos Postfix y lo configuramos como local
+-> apt-get install postfix
+Al proceder a instalar logcheck he tenido problemas con el repositorio multimedia de debian, lo he solucionado
+instalando el siguiente paquete:
+-> aptitude install debian-multimedia-keyring
+instalamos el logcheck:
+-> apt-get install logcheck
+
+2º Editamos /etc/logcheck/logcheck.conf e indicamos a quien va a ser mandado el mail:
+-> SENDMAILTO="root"
+Editamos /etc/logcheck/logcheck.files y añadimos:
+/var/log/monitorizacion.log para que mande la informacion de ese log
+Si queremos cambiar la frecuencia con la que se mandaran los resultados modificamos:
+/etc/cron.d/logcheck

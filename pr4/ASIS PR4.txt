@@ -1,0 +1,46 @@
+############################
+# Cristian Simon Moreno
+# Practica 4 
+############################
+
+-------
+Parte 2
+-------
+1) Instalar sudo:
+En el terminal -> aptitude install sudo
+Editar el fichero -> "/etc/sudoers" añadiendo "user ALL=(ALL) NOPASSWD: ALL"
+
+2)Configurar las interfaces:
+Editar el fichero -> "/etc/network/interfaces" añadiendo una nueva interfaz:
+
+auto vboxnet0
+iface vboxnet0 inet static
+address 192.168.56.1
+netmask 255.255.255.0
+
+3)Comprobacion del funcionamiento:
+Mediante el comando ping + la direccion IP
+
+4)Instalacion del servidor SSH:
+sudo apt-get install openssh-server 
+
+5)Configuracion del servidor SSH:
+Editar el fichero -> "/etc/ssh/sshd_config" añadiendo "PermitRootLogin no"
+
+6)Comprobacion del servidor SSH:
+En el terminal -> ssh user@IP 'echo "PRUEBA"'
+
+-------
+Parte 3
+-------
+Para que se pueda ejecutar un cliente SSH sin necesidad de password, para ellos
+hacemos:
+-> En la maquina local escribimos:
+ssh-keygen -b 4096 -t rsa
+esto nos generara una llave publica
+-> Presionamos 3 veces la tecla enter y con esto ya tendriamos la llave publica
+-> En la maquina local escribimos:
+ssh-copy-id user@192.168.56.2
+Con esto lo que hacemos es darle la llave publica de la maquina local a la maquina
+remota.
+-> Introducimos la contraseña en la maquina remota y listo.
