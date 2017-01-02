@@ -1,2 +1,2 @@
 # ASIS
-Practicas de Administracion de Sistemas Unizar
+Practicas de la asignatura Administracion de Sistemas Unizar
